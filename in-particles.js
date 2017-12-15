@@ -35,7 +35,7 @@ class Particle {
     finalY,
     width,
     height,
-    config
+    config = defaultParticleConfig
   ) {
     this.key = key;
     this.context = context;
@@ -82,9 +82,104 @@ class Particle {
 
     // if the position is at target position, movement should be completed
     if (currX === this.finalX && this.currY === this.finalY) {
-      this.completed = true;
+      this.finished = true;
     }
 
     this.draw(currX, currY);
+  }
+}
+
+const TEXT = 'TEXT';
+const IMG = 'IMG';
+
+const defaultTextConfig = {
+  fontSize: 16,
+  fontFamily: 'Helvetica',
+  fillStyle: 'black'
+};
+
+class ParticleManager {
+  // mode TEXT or IMG
+  // value textValue or IMG src
+  constructor(mode, value, config) {
+    // create canvas
+    this.canvas = document.createElement('canvas');
+    this.value = value;
+
+    if (mode === TEXT) {
+      this.width = this.calculateTextLength(this.value, config.fontSize);
+      this.height = config.fontSize * 1.5;
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+      this.context = this.canvas.getContext('2d');
+      this.imageData = this.getTextImageData(
+        this.value,
+        config.fontSize,
+        config.fontFamily,
+        config.fillStyle
+      );
+    }
+
+    this.particles = this.calculateParticles(this.imageData);
+    this.animate = this.animate.bind(this);
+    this.time = 0;
+    this.duration = this.config.duration;
+  }
+
+  getTextImageData(text, fontSize, fontFamily, fillStyle) {
+    this.context.font = `${fontSize}px ${fontFamily}`;
+    this.context.fillStyle = fillStyle;
+    this.context.fillText(text, fontSize * 0.05, fontSize);
+    let imageData = this.context.getImageData(0, 0, this.width, this.height);
+    this.context.clearRect(0, 0, this.width, this.height);
+    return imageData;
+  }
+
+  calculateParticles(imageData) {
+    let length = imageData.length;
+    let cols = 100,
+      rows = 100;
+    let cellWidth = Math.parseInt(this.width / cols);
+    let cellHeight = Math.parseInt(this.height / rows);
+    let pos = 0;
+    let particles = [];
+    for (let i = 1; i <= cols; i++) {
+      for (let j = 1; j <= rows; j++) {
+        pos = [(j * cellHeight - 1) * this.width + (i * cellWidth - 1)] * 4;
+        if (imageData.data[pos] > 250) {
+          let particle = new Particle(
+            pos,
+            this.context,
+            0,
+            0,
+            i * cellWidth + (Math.random() - 0.5) * this.fontSize / 20,
+            j * cellHeight + (Math.random() - 0.5) * this.fontSize / 20,
+            this.width,
+            this.height
+          );
+          particles.push(particle);
+        }
+      }
+    }
+    return particles;
+  }
+
+  calculateTextLength(text, fontSize) {
+    return text.length * fontSize * 0.5;
+  }
+
+  animate() {
+    this.context.clearRect(0, 0, this.width, this.height);
+    let moved = false;
+    this.particles.forEach(particle => {
+      if (!particle.finished) {
+        particle.move(this.time, this.duration);
+        moved = true;
+      }
+    });
+    this.time++;
+    if (moved) {
+      requestAnimationFrame(this.anime);
+    }
   }
 }
